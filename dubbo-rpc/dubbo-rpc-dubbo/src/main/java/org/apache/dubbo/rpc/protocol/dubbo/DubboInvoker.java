@@ -80,6 +80,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
             currentClient = clients[index.getAndIncrement() % clients.length];
         }
         try {
+            // 读取async
             boolean isAsync = RpcUtils.isAsync(getUrl(), invocation);
             boolean isAsyncFuture = RpcUtils.isReturnTypeFuture(inv);
             boolean isOneway = RpcUtils.isOneway(getUrl(), invocation);
@@ -90,12 +91,14 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
                 RpcContext.getContext().setFuture(null);
                 return new RpcResult();
             } else if (isAsync) {
+                // 如果是异步的 构造future对象
                 ResponseFuture future = currentClient.request(inv, timeout);
                 // For compatibility
                 FutureAdapter<Object> futureAdapter = new FutureAdapter<>(future);
                 RpcContext.getContext().setFuture(futureAdapter);
 
                 Result result;
+                // 同时将返回结果包装成AsyncResult对象
                 if (isAsyncFuture) {
                     // register resultCallback, sometimes we need the async result being processed by the filter chain.
                     result = new AsyncRpcResult(futureAdapter, futureAdapter.getResultFuture(), false);

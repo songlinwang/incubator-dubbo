@@ -43,14 +43,25 @@ public class FutureFilter implements Filter {
 
     @Override
     public Result invoke(final Invoker<?> invoker, final Invocation invocation) throws RpcException {
+        // 获取配置的事件信息 同步执行
         fireInvokeCallback(invoker, invocation);
         // need to configure if there's return value before the invocation in order to help invoker to judge if it's
         // necessary to return future.
+        // 通过
         return invoker.invoke(invocation);
     }
 
+    /**
+     * 上面介绍的是正常的服务调用，这个方法处理的是onreturn onthrow方法的调用逻辑，分为sync以及asyne。oninvoke只有同步，在上面的invoke方法已经执行了
+     * 异步回调和同步回调的区别在于RPC服务调用完成后，调用回调方法的方式（onreturn onthrow）。异步调用的话是通过Future模式异步执行，同步的话是立即调用回调方法
+     * @param result
+     * @param invoker
+     * @param invocation
+     * @return
+     */
     @Override
     public Result onResponse(Result result, Invoker<?> invoker, Invocation invocation) {
+        //
         if (result instanceof AsyncRpcResult) {
             AsyncRpcResult asyncResult = (AsyncRpcResult) result;
             asyncResult.thenApplyWithContext(r -> {
@@ -85,6 +96,7 @@ public class FutureFilter implements Filter {
         if (asyncMethodInfo == null) {
             return;
         }
+        // 获取事件的配置信息
         final Method onInvokeMethod = asyncMethodInfo.getOninvokeMethod();
         final Object onInvokeInst = asyncMethodInfo.getOninvokeInstance();
 
@@ -202,6 +214,7 @@ public class FutureFilter implements Filter {
     }
 
     private ConsumerMethodModel.AsyncMethodInfo getAsyncMethodInfo(Invoker<?> invoker, Invocation invocation) {
+        // 获取消费者信息
         final ConsumerModel consumerModel = ApplicationModel.getConsumerModel(invoker.getUrl().getServiceKey());
         if (consumerModel == null) {
             return null;
@@ -211,12 +224,12 @@ public class FutureFilter implements Filter {
         if (methodName.equals(Constants.$INVOKE)) {
             methodName = (String) invocation.getArguments()[0];
         }
-
+        // 消费者对应的方法信息
         ConsumerMethodModel methodModel = consumerModel.getMethodModel(methodName);
         if (methodModel == null) {
             return null;
         }
-
+        // 消费者对应方法的事件信息，即是否配置事件通知
         final ConsumerMethodModel.AsyncMethodInfo asyncMethodInfo = methodModel.getAsyncInfo();
         if (asyncMethodInfo == null) {
             return null;
